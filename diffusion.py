@@ -21,7 +21,7 @@ def load_quant_unet():
     return unet
 
 
-def main():
+def stable_diffusion(prompt):
   device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
   # 1. Load the autoencoder model which will be used to decode the latents into image space. 
@@ -34,13 +34,11 @@ def main():
   # 3. The UNet model for generating the latents.
   unet = UNet2DConditionModel.from_pretrained("CompVis/stable-diffusion-v1-4", subfolder="unet")
 
-#   unet = load_quant_unet()
+  # unet = load_quant_unet()
+  # unet = torch.load('gmm_quantized_unet_w_outlier_32.pth')  
   scheduler = EulerDiscreteScheduler.from_pretrained("CompVis/stable-diffusion-v1-4", subfolder="scheduler")
 
    
-
-
-  prompt = ["a person singing"]
   height = 512                        # default height of Stable Diffusion
   width = 512                         # default width of Stable Diffusion
   num_inference_steps = 50            # Number of denoising steps
@@ -68,7 +66,6 @@ def main():
 #     torch.cuda.current_stream().synchronize()
 #   embed_time1 = time.time()
 #   print('embed_time',embed_time1-embed_time0)
-
   latents = torch.randn(
     (batch_size, unet.in_channels, height // 8, width // 8),
     generator=generator
@@ -118,11 +115,13 @@ def main():
   image = (image / 2 + 0.5).clamp(0, 1)
   image = image.detach().cpu().permute(0, 2, 3, 1).numpy()
   images = (image * 255).round().astype("uint8")
-  pil_images = [Image.fromarray(image) for image in images]
-  img = pil_images[0]
-  img.save('test.png')
+  # pil_images = [Image.fromarray(image) for image in images]
+  # img = pil_images[0]
+  # img.save('test.png')
+
+  return images
 
 
 if __name__ == '__main__':
-    main()
+    stable_diffusion()
     # load_quant_unet()

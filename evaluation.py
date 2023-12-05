@@ -5,8 +5,8 @@ from functools import partial
 from torchvision.transforms import functional as F
 import torch
 import numpy as np
-from zipfile import ZipFile
-import requests
+from skimage.transform import resize
+import torchvision.datasets as dset
 from PIL import Image
 import os
 
@@ -40,40 +40,41 @@ def get_clip_score():
     print(f"CLIP score: {sd_clip_score}")
 
 def get_fid():
-    def preprocess_image(image):
-        image = torch.tensor(image).unsqueeze(0)
-        image = image.permute(0, 3, 1, 2) / 255.0
-        return F.center_crop(image, (256, 256))
+    img_idx = [3,500]
     
-    dataset_path = "sample-imagenet-images"
-    image_paths = sorted([os.path.join(dataset_path, x) for x in os.listdir(dataset_path)])
-    real_images = [np.array(Image.open(path).convert("RGB")) for path in image_paths]
-    real_images = torch.cat([preprocess_image(image) for image in real_images])
-    print(real_images.shape)
-    prompts = [
-        "cassette player",
-        "chainsaw"]
-    # prompts = [
-    #     "cassette player",
-    #     "chainsaw",
-    #     "chainsaw",
-    #     "church",
-    #     "gas pump",
-    #     "gas pump",
-    #     "gas pump",
-    #     "parachute",
-    #     "parachute",
-    #     "tench",
-    # ]
+    def preprocess_image(img_idx):
+        prompts = []
+        real_images = np.array([])
+        coco_val = dset.CocoCaptions(root = 'mscoco/val2017',
+                        annFile = 'mscoco/annotations/captions_val2017.json')
+        for idx in img_idx:
+            prompts.append(coco_val[idx][1][2])
+            img = resize(np.array(coco_val[idx][0]),(512,512,3))
+            img = Image.fromarray((img * 255).astype(np.uint8))
+            img = np.expand_dims(np.array(img),axis=0)
+            if real_images.size == 0:
+                real_images = img
+            else:
+                real_images = np.vstack((real_images,np.array(img)))
 
+        real_images = torch.from_numpy(real_images).permute(0, 3, 1, 2)
+        return prompts,real_images
+    prompts,real_images = preprocess_image(img_idx)
+    print(real_images.shape)
     fake_images = np.array([])
     for prompt in prompts:
         if fake_images.size == 0:
             fake_images = stable_diffusion(prompt=prompt)
         else:
+    
             fake_images = np.vstack((fake_images,stable_diffusion(prompt=prompt)))
+    for i in range(fake_images.shape[0]):
+        image_data = fake_images[i]  
+        image = Image.fromarray(image_data)
+        image.save(f'img_by_original/image_{i + 1}.png')
+            
     fake_images = torch.from_numpy(fake_images).permute(0, 3, 1, 2)
-    print(fake_images.shape)
+    
 
     fid = FrechetInceptionDistance(normalize=True)
     fid.update(real_images, real=True)
