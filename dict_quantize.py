@@ -41,11 +41,11 @@ def kmeans_cosine(X, k, max_iters=100, tol=1e-4):
     return labels, centroids
 
 class KMeansQuantizer:
-    def __init__(self, model, bitwidth=5, test=False):
+    def __init__(self, model, bitwidth=6, test=False):
         self.num_clusters = 2**bitwidth
         # torch.save(model,'original_model.pth')
         self.codebooks = self.quantize(model)
-        torch.save(model,'algomerative_cossim_quantized_unet_w_outlier_32.pth')
+        torch.save(model,'quantized_model_w_outlier_64.pth')
         # torch.save(self.codebooks,'codebooks.pth')
 
     
@@ -58,10 +58,9 @@ class KMeansQuantizer:
             
             indices_g = log_prob > -4
             g_values = flattened_data[indices_g]
-            labels, centroids = KMeans(g_values,self.num_clusters)
-            print(len(np.unique(labels)))
-            # centroids = np.array([g_values[labels == i].mean(axis=0) for i in range(agglomerative.n_clusters)])
-            # flattened_data[indices_g] = centroids[labels]
+            kmeans = KMeans(n_clusters=self.num_clusters, random_state=0)
+            labels = kmeans.fit_predict(g_values)
+            flattened_data[indices_g] = kmeans.cluster_centers_[labels]
                         
             # kmeans = SphericalKMeans(n_clusters=self.num_clusters, random_state=0)
             # labels = np.array(kmeans.cluster(g_values,assign_clusters = True))
@@ -70,7 +69,6 @@ class KMeansQuantizer:
             # kmeans.fit(g_values)
             # print(labels)
             # print(mshift.cluster_centers_.size)
-            flattened_data[indices_g] = centroids[labels]
             
             # centroids = torch.tensor(kmeans.cluster_centers_,dtype=torch.float32).to(param.device)
             # codebook = Codebook(centroids, indices)
