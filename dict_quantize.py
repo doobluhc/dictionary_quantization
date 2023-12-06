@@ -58,7 +58,7 @@ class KMeansQuantizer:
             
             indices_g = log_prob > -4
             g_values = flattened_data[indices_g]
-            labels, centroids = kmeans_cosine(g_values,self.num_clusters)
+            labels, centroids = KMeans(g_values,self.num_clusters)
             print(len(np.unique(labels)))
             # centroids = np.array([g_values[labels == i].mean(axis=0) for i in range(agglomerative.n_clusters)])
             # flattened_data[indices_g] = centroids[labels]
